@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="styles.css">
+  <title>KhelSetu · Campus Fitness Observatory</title>
+  <style>
+    body { padding-top: 0; padding-bottom: 32px; }
+    main { max-width: 960px; }
+    .hdr { background: linear-gradient(135deg, var(--court-dark), var(--court)); color: #fff; padding: 18px 20px; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,0.08); display:flex; justify-content:space-between; align-items:center; }
+    .hdr-title { font-size: 1.15rem; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
+    .hdr-badge { background: rgba(255,255,255,0.18); font-size: 0.78rem; padding: 4px 10px; border-radius: 999px; font-weight: 600; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 16px 0; }
+    .kpi-card { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+    .kpi-num { font-size: 2rem; font-weight: 800; color: var(--court); line-height: 1.1; }
+    .kpi-label { font-size: 0.82rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .sup-tag { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px; background: rgba(184,67,47,0.1); color: var(--clay); font-size: 0.82rem; font-weight: 600; }
+    .bar2 { height: 10px; background: var(--line); border-radius: 6px; overflow: hidden; min-width: 90px; }
+    .bar2 > div { height: 100%; background: linear-gradient(90deg, var(--court), var(--marigold)); border-radius: 6px; transition: width 0.6s ease; }
+    .band-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+    .band-tag { font-size: 0.72rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+    .band-starter { background: #FDE8E4; color: #8A2B1A; }
+    .band-building { background: #FEF3D6; color: #784E00; }
+    .band-steady { background: #E0F2E9; color: #0E5E36; }
+    .band-strong { background: #D2EBF8; color: #0C4B75; }
+    .banner { background: #FEF3D6; border-left: 4px solid var(--marigold); color: #5C3F00; border-radius: 8px; padding: 12px 14px; margin: 14px 0; font-weight: 600; font-size: 0.92rem; }
+    .tw { overflow-x: auto; }
+    .table-tools { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap; }
+    .btn-group { display: flex; gap: 8px; }
+  </style>
+</head>
+<body>
+  <div class="hdr">
+    <div class="hdr-title">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h3l2-6 4 12 2-6h5"/><path d="M20 12h2"/></svg>
+      <span>KhelSetu Campus Observatory</span>
+    </div>
+    <div class="hdr-badge">Sports & PE Analytics</div>
+  </div>
+
+  <main>
+    <div class="card" style="margin-top: 16px;">
+      <div class="row">
+        <div>
+          <label for="key">Admin Access Key</label>
+          <input id="key" type="password" value="demo-admin" placeholder="Enter admin key">
+        </div>
+        <div>
+          <label for="inst">Institution Code</label>
+          <input id="inst" value="DEMO" placeholder="e.g. DEMO / IITB">
+        </div>
+      </div>
+      <div class="row" style="margin-top: 10px;">
+        <button class="btn" id="load" style="margin:0;">Load Live Analytics</button>
+        <button class="btn alt" id="seed" style="margin:0;">Seed Synthetic Demo Cohort</button>
+      </div>
+      <div id="msg" class="muted small" role="status" style="margin-top: 8px; min-height: 18px;"></div>
+    </div>
+
+    <div id="kpi-container" class="kpi-grid" hidden></div>
+    <div id="out"></div>
+
+    <div class="card" style="background: rgba(23,96,79,0.04); border: 1px dashed var(--court);">
+      <h3 style="margin-top:0; color: var(--court-dark); display: flex; align-items: center; gap: 6px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        k-Anonymity & DPDP Privacy Guarantee (k &ge; <span id="k">10</span>)
+      </h3>
+      <p class="muted small" style="margin-bottom:0;">
+        To prevent individual re-identification and peer stigma, student groups with fewer than <b>10 members</b> are strictly suppressed and merged into an aggregate "Other" pool. If the aggregated pool remains below the threshold, it is fully concealed. No individual fitness scores, BMI, video feeds, or personal identifiers are ever visible on this portal.
+      </p>
+    </div>
+  </main>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const H = () => ({ 'X-Admin-Key': $('#key').value.trim() });
+    let currentData = null;
+
+    async function load() {
+      $('#msg').textContent = 'Loading campus statistics…';
+      try {
+        const r = await fetch('/api/admin/summary?institution=' + encodeURIComponent($('#inst').value.trim()), { headers: H() });
+        if (!r.ok) {
+          const err = (await r.json().catch(() => ({}))).detail || r.statusText;
+          $('#msg').textContent = 'Error: ' + err;
+          return;
+        }
+        currentData = await r.json();
+        renderData(currentData);
+        $('#msg').textContent = 'Updated at ' + new Date().toLocaleTimeString();
+      } catch (e) {
+        $('#msg').textContent = 'Connection error: ' + e.message;
+      }
+    }
+
+    function renderData(d) {
+      $('#k').textContent = d.k;
+      const validGroups = d.groups.filter(g => !g.suppressed);
+      const visibleStudents = validGroups.reduce((acc, g) => acc + (g.n || 0), 0);
+      const avgMinutes = validGroups.length ? Math.round(validGroups.reduce((acc, g) => acc + g.avg_weekly_minutes, 0) / validGroups.length) : 0;
+      const avgMeeting = validGroups.length ? Math.round(validGroups.reduce((acc, g) => acc + g.pct_meeting_150, 0) / validGroups.length) : 0;
+      const hasSuppressed = d.groups.some(g => g.suppressed);
+      
+      const kpis = $('#kpi-container');
+      kpis.hidden = false;
+      kpis.innerHTML = `
+        <div class="kpi-card">
+          <span class="kpi-label">Visible Cohort Students (k &ge; ${d.k})</span>
+          <span class="kpi-num">${visibleStudents}</span>
+          <span class="muted small">${validGroups.length} Visible Groups${hasSuppressed ? ' · Small groups protected' : ''}</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Avg Weekly Active Mins</span>
+          <span class="kpi-num">${avgMinutes} <small style="font-size:0.9rem;font-weight:600">min/wk</small></span>
+          <span class="muted small">North Star: 150 min (WHO)</span>
+        </div>
+        <div class="kpi-card">
+          <span class="kpi-label">Meeting WHO 150m Target</span>
+          <span class="kpi-num">${avgMeeting}%</span>
+          <span class="muted small">Visible Cohort Ratio</span>
+        </div>
+      `;
+
+      const maxMin = Math.max(1, ...validGroups.map(g => g.avg_weekly_minutes || 0));
+
+      let tableRows = d.groups.map(g => {
+        if (g.suppressed) {
+          return `
+            <tr>
+              <td><b>${g.group}</b></td>
+              <td colspan="5">
+                <span class="sup-tag">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  Suppressed for Privacy (&lt; ${d.k} students in cohort)
+                </span>
+              </td>
+            </tr>`;
+        }
+
+        const bands = g.bands || {};
+        const bandTags = Object.entries(bands).map(([b, cnt]) => `<span class="band-tag band-${b}" title="${b}: ${cnt}">${b[0].toUpperCase()}:${cnt}</span>`).join(' ');
+
+        return `
+          <tr>
+            <td><b>${g.group}</b></td>
+            <td><span class="pill">${g.n}</span></td>
+            <td>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div class="bar2"><div style="width:${Math.round(100 * g.avg_weekly_minutes / maxMin)}%"></div></div>
+                <b>${g.avg_weekly_minutes}m</b>
+              </div>
+            </td>
+            <td><b>${g.pct_meeting_150}%</b></td>
+            <td>${g.avg_baseline_index != null ? `${g.avg_baseline_index}/100` : '–'}</td>
+            <td><div class="band-pills">${bandTags || '<span class="muted small">–</span>'}</div></td>
+          </tr>`;
+      }).join('');
+
+      $('#out').innerHTML = `
+        ${d.synthetic_data ? '<div class="banner">ℹ Showing Synthetic Demo Cohort Data (Mech Year 3 has 4 students to verify k-anonymity suppression).</div>' : ''}
+        <div class="card tw">
+          <div class="table-tools">
+            <div>
+              <h2 style="margin:0">${d.institution}</h2>
+              <span class="muted small">Reporting Week Commencing: ${d.week_start}</span>
+            </div>
+            <div class="btn-group">
+              <button class="btn alt small" id="expJson" style="margin:0; padding:8px 12px; min-height:0;">Export JSON</button>
+              <button class="btn alt small" id="expCsv" style="margin:0; padding:8px 12px; min-height:0;">Export CSV</button>
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Cohort / Group</th>
+                <th>Students (n)</th>
+                <th>Avg Active Minutes</th>
+                <th>Meeting 150m Target</th>
+                <th>Baseline Index</th>
+                <th>Band Distribution</th>
+              </tr>
+            </thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </div>`;
+
+      $('#expJson').onclick = () => downloadFile(JSON.stringify(d, null, 2), `khelsetu-summary-${d.week_start}.json`, 'application/json');
+      $('#expCsv').onclick = () => exportCsv(d);
+    }
+
+    function downloadFile(content, filename, type) {
+      const blob = new Blob([content], { type });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+    }
+
+    function exportCsv(d) {
+      const headers = ['Cohort', 'Students', 'AvgWeeklyMinutes', 'PctMeeting150', 'AvgBaselineIndex', 'Suppressed'];
+      const rows = d.groups.map(g => [
+        `"${g.group}"`,
+        g.suppressed ? '' : (g.n || ''),
+        g.suppressed ? '' : (g.avg_weekly_minutes || ''),
+        g.suppressed ? '' : (g.pct_meeting_150 || ''),
+        g.suppressed ? '' : (g.avg_baseline_index || ''),
+        g.suppressed ? 'TRUE' : 'FALSE'
+      ]);
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      downloadFile(csv, `khelsetu-summary-${d.week_start}.csv`, 'text/csv');
+    }
+
+    $('#load').onclick = load;
+    $('#seed').onclick = async () => {
+      $('#msg').textContent = 'Seeding synthetic data…';
+      const r = await fetch('/api/demo/seed', { method: 'POST', headers: H() });
+      if (r.ok) {
+        $('#msg').textContent = 'Synthetic dataset seeded successfully.';
+        load();
+      } else {
+        $('#msg').textContent = 'Seeding failed (demo mode disabled or unauthorized).';
+      }
+    };
+  </script>
+</body>
+</html>
+

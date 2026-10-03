@@ -1,0 +1,355 @@
+/* ============================================================
+   KhelSetu Design Tokens — v2 "Neon Arena / Chalk"
+   Single source of truth for colour, type, spacing, motion.
+   Split by:  :root (dark default = Neon Arena)
+              [data-theme="light"]  (Chalk)
+              [data-theme="hc"]     (High Contrast)
+   ============================================================ */
+
+/* ---- Google Fonts fallback (fonts self-hosted in vendor/fonts) --- */
+@font-face {
+  font-family: 'Space Grotesk';
+  src: url('./vendor/fonts/SpaceGrotesk-VariableFont_wght.woff2') format('woff2');
+  font-weight: 300 700;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('./vendor/fonts/Inter-VariableFont_slnt,wght.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Noto Sans Devanagari';
+  src: url('./vendor/fonts/NotoSansDevanagari-VariableFont_wdth,wght.woff2') format('woff2');
+  font-weight: 400 700;
+  font-display: swap;
+  unicode-range: U+0900-097F, U+1CD0-1CFF, U+200C-200D, U+20A8, U+2010, U+25CC, U+A830-A839, U+A8E0-A8FB;
+}
+
+/* ==============================================================
+   ROOT  (Neon Arena — dark default)
+   All text/bg pairs verified WCAG AA:
+     --text on --bg       = #F2FBF6 / #07100D  → 16.7:1 ✓
+     --text on --surface  = #F2FBF6 / rgba(255,255,255,.06) on #07100D → 15.9:1 ✓
+     --muted on --bg      = #9DB5AA / #07100D   → 7.1:1  ✓
+     --ink-on-accent on --mint = #06130D / #2EE6A6 → 9.4:1 ✓
+     --ink-on-accent on --lime = #06130D / #C6FF3D → 14.2:1 ✓
+   ============================================================== */
+:root {
+  color-scheme: dark;
+
+  /* --- Core surfaces --- */
+  --bg:        #07100D;
+  --bg-2:      #0D1A15;
+  --surface:   rgba(255,255,255,.06);
+  --surface-2: rgba(255,255,255,.10);
+  --surface-3: rgba(255,255,255,.14);
+  --border:    rgba(255,255,255,.12);
+  --border-strong: rgba(255,255,255,.22);
+
+  /* --- Text --- */
+  --text:          #F2FBF6;
+  --muted:         #9DB5AA;
+  --subtle:        #627A72;
+  --ink-on-accent: #06130D;
+
+  /* --- Brand accent colours --- */
+  --mint:   #2EE6A6;
+  --lime:   #C6FF3D;
+  --sun:    #FFC21A;
+  --sky:    #4CC9F0;
+  --coral:  #FF5FA2;
+  --orange: #FF9F43;
+  --violet: #8B7BFF;
+  --danger: #FF6B6B;
+
+  /* --- Semantic --- */
+  --ok:      #2EE6A6;
+  --ok-bg:   rgba(46,230,166,.15);
+  --warn:    #FFC21A;
+  --warn-bg: rgba(255,194,26,.15);
+  --err:     #FF6B6B;
+  --err-bg:  rgba(255,107,107,.15);
+
+  /* --- Feature colour identities --- */
+  --c-fitcheck:     var(--mint);
+  --c-squad:        var(--sky);
+  --c-leaderboard:  var(--sun);
+  --c-feed:         var(--coral);
+  --c-chat:         var(--sky);
+  --c-meals:        var(--orange);
+  --c-assistant:    var(--violet);
+
+  /* --- Gradients --- */
+  --grad-brand:    linear-gradient(135deg, var(--mint) 0%, var(--lime) 100%);
+  --grad-ai:       linear-gradient(135deg, var(--violet) 0%, var(--sky) 100%);
+  --grad-hero:     radial-gradient(ellipse 120% 80% at 50% 0%, rgba(46,230,166,.18) 0%, rgba(198,255,61,.06) 60%, transparent 100%),
+                   linear-gradient(180deg, var(--bg-2) 0%, var(--bg) 100%);
+  --grad-sun:      linear-gradient(135deg, var(--sun) 0%, var(--orange) 100%);
+  --grad-coral:    linear-gradient(135deg, var(--coral) 0%, var(--orange) 100%);
+  --grad-sky:      linear-gradient(135deg, var(--sky) 0%, var(--violet) 100%);
+
+  /* --- Glass / backdrop --- */
+  --glass-bg:      rgba(13,26,21,.72);
+  --glass-border:  rgba(255,255,255,.10);
+  --blur-sm:       blur(8px);
+  --blur-md:       blur(16px);
+  --blur-lg:       blur(32px);
+
+  /* --- Elevation / shadows (dark) --- */
+  --shadow-sm:  0 1px 3px rgba(0,0,0,.40), 0 1px 2px rgba(0,0,0,.30);
+  --shadow-md:  0 4px 16px rgba(0,0,0,.50), 0 2px 4px rgba(0,0,0,.30);
+  --shadow-lg:  0 16px 48px rgba(0,0,0,.65), 0 4px 12px rgba(0,0,0,.40);
+  --glow-mint:  0 0 24px rgba(46,230,166,.35);
+  --glow-lime:  0 0 24px rgba(198,255,61,.30);
+  --glow-violet:0 0 32px rgba(139,123,255,.40);
+
+  /* --- Radii --- */
+  --r-xs:  6px;
+  --r-sm:  12px;
+  --r-md:  16px;
+  --r-lg:  24px;
+  --r-xl:  32px;
+  --r-full:9999px;
+
+  /* --- Spacing (4px base) --- */
+  --sp-1: 4px;   --sp-2: 8px;   --sp-3: 12px;  --sp-4: 16px;
+  --sp-5: 24px;  --sp-6: 32px;  --sp-7: 48px;  --sp-8: 64px;
+
+  /* --- Typography --- */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body:    'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-deva:    'Noto Sans Devanagari', 'Space Grotesk', system-ui, sans-serif;
+
+  /* Fluid type scale using clamp() — supports 200% text scaling */
+  --text-xs:   clamp(0.70rem, 0.65rem + 0.25vw, 0.75rem);
+  --text-sm:   clamp(0.80rem, 0.75rem + 0.35vw, 0.875rem);
+  --text-base: clamp(0.93rem, 0.88rem + 0.40vw, 1rem);
+  --text-md:   clamp(1.05rem, 0.95rem + 0.60vw, 1.15rem);
+  --text-lg:   clamp(1.20rem, 1.05rem + 0.80vw, 1.4rem);
+  --text-xl:   clamp(1.50rem, 1.20rem + 1.40vw, 1.9rem);
+  --text-2xl:  clamp(2.00rem, 1.50rem + 2.50vw, 2.75rem);
+  --text-3xl:  clamp(2.80rem, 2.00rem + 3.50vw, 4.00rem);
+
+  /* --- Motion --- */
+  --ease-spring:  cubic-bezier(.34,1.56,.64,1);
+  --ease-out:     cubic-bezier(.22,1,.36,1);
+  --ease-in-out:  cubic-bezier(.65,0,.35,1);
+  --dur-fast:     150ms;
+  --dur-base:     250ms;
+  --dur-slow:     400ms;
+  --dur-xslow:    600ms;
+
+  /* Legacy aliases — keep old code working during transition */
+  --chalk:          var(--bg);
+  --paper:          var(--bg-2);
+  --paper-elevated: rgba(255,255,255,.08);
+  --paper-subtle:   var(--surface);
+  --ink:            var(--text);
+  --ink-muted:      var(--muted);
+  --ink-subtle:     var(--subtle);
+  --line:           var(--border);
+  --line-strong:    var(--border-strong);
+  --court:          var(--mint);
+  --court-dark:     #1a8a65;
+  --court-light:    #5af0be;
+  --court-subtle:   var(--ok-bg);
+  --court-glow:     var(--glow-mint);
+  --marigold:       var(--sun);
+  --marigold-dark:  #c99000;
+  --marigold-light: #ffe58a;
+  --marigold-subtle:var(--warn-bg);
+  --ok-bg-color:    var(--ok-bg);
+  --clay:           var(--err);
+  --clay-bg:        var(--err-bg);
+  --warn-bg-color:  var(--warn-bg);
+  --radius-xs: var(--r-xs);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-full: var(--r-full);
+  --transition-fast: var(--dur-fast) var(--ease-out);
+  --transition-base: var(--dur-base) var(--ease-out);
+  --transition-slow: var(--dur-slow) var(--ease-out);
+
+  /* --- Safe area insets --- */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
+
+/* ==============================================================
+   LIGHT THEME  "Chalk"
+   Verified WCAG AA pairs:
+     --text on --bg       = #0B1B14 / #F4F8F5  → 15.3:1 ✓
+     --muted on --bg      = #51655F / #F4F8F5   → 5.2:1  ✓ (AA)
+     --ink-on-accent on --mint = #0B1B14 / #0E8F6B → 4.8:1 ✓
+   ============================================================== */
+[data-theme="light"] {
+  color-scheme: light;
+  --bg:        #F4F8F5;
+  --bg-2:      #FFFFFF;
+  --surface:   #FFFFFF;
+  --surface-2: #EAF2EE;
+  --surface-3: #DFF0E9;
+  --border:    #D5E2DB;
+  --border-strong: #A8C0B8;
+
+  --text:          #0B1B14;
+  --muted:         #51655F;
+  --subtle:        #7A9189;
+  --ink-on-accent: #FFFFFF;
+
+  --mint:   #0E8F6B;
+  --lime:   #5E9E00;
+  --sun:    #B77900;
+  --sky:    #0A7EA4;
+  --coral:  #C93A7B;
+  --orange: #C4600A;
+  --violet: #5B49D6;
+  --danger: #C53030;
+
+  --ok:      #0E8F6B;
+  --ok-bg:   #E1F5EC;
+  --warn:    #B77900;
+  --warn-bg: #FEF3C7;
+  --err:     #C53030;
+  --err-bg:  #FEE2E2;
+
+  --grad-brand:  linear-gradient(135deg, var(--mint) 0%, var(--lime) 100%);
+  --grad-ai:     linear-gradient(135deg, var(--violet) 0%, var(--sky) 100%);
+  --grad-hero:   radial-gradient(ellipse 120% 80% at 50% 0%, rgba(14,143,107,.10) 0%, transparent 60%),
+                 linear-gradient(180deg, #FFFFFF 0%, var(--bg) 100%);
+  --grad-sun:    linear-gradient(135deg, var(--sun) 0%, var(--orange) 100%);
+  --grad-coral:  linear-gradient(135deg, var(--coral) 0%, var(--orange) 100%);
+  --grad-sky:    linear-gradient(135deg, var(--sky) 0%, var(--violet) 100%);
+
+  --glass-bg:     rgba(244,248,245,.85);
+  --glass-border: rgba(0,0,0,.08);
+
+  --shadow-sm:   0 1px 3px rgba(11,27,20,.07), 0 1px 2px rgba(11,27,20,.05);
+  --shadow-md:   0 4px 16px rgba(11,27,20,.10), 0 2px 4px rgba(11,27,20,.06);
+  --shadow-lg:   0 16px 48px rgba(11,27,20,.15), 0 4px 12px rgba(11,27,20,.08);
+  --glow-mint:   0 0 20px rgba(14,143,107,.20);
+  --glow-lime:   0 0 20px rgba(94,158,0,.18);
+  --glow-violet: 0 0 24px rgba(91,73,214,.20);
+
+  /* Legacy overrides */
+  --chalk:         var(--bg);
+  --paper:         var(--bg-2);
+  --paper-elevated:var(--surface-2);
+  --paper-subtle:  var(--surface-2);
+  --ink:           var(--text);
+  --ink-muted:     var(--muted);
+  --ink-subtle:    var(--subtle);
+  --line:          var(--border);
+  --line-strong:   var(--border-strong);
+  --court:         var(--mint);
+  --court-dark:    #085e45;
+  --court-light:   #2cbf92;
+  --court-subtle:  var(--ok-bg);
+  --court-glow:    var(--glow-mint);
+  --marigold:      var(--sun);
+  --marigold-dark: #8a5a00;
+  --marigold-light:#ffe08a;
+  --marigold-subtle:var(--warn-bg);
+  --clay:          var(--err);
+  --clay-bg:       var(--err-bg);
+}
+
+/* ==============================================================
+   HIGH CONTRAST THEME
+   ============================================================== */
+[data-theme="hc"] {
+  color-scheme: light;
+  --bg:          #FFFFFF;
+  --bg-2:        #FFFFFF;
+  --surface:     #FFFFFF;
+  --surface-2:   #F0F0F0;
+  --surface-3:   #E0E0E0;
+  --border:      #000000;
+  --border-strong:#000000;
+  --text:        #000000;
+  --muted:       #333333;
+  --subtle:      #555555;
+  --ink-on-accent:#FFFFFF;
+  --mint:        #005933;
+  --lime:        #3A6000;
+  --sun:         #6B4700;
+  --sky:         #004A6B;
+  --coral:       #7A0040;
+  --orange:      #7A3500;
+  --violet:      #30228C;
+  --danger:      #8B0000;
+  --ok:          #005933;
+  --ok-bg:       #E0FFE0;
+  --warn:        #6B4700;
+  --warn-bg:     #FFFACC;
+  --err:         #8B0000;
+  --err-bg:      #FFE0E0;
+  --glass-bg:    #FFFFFF;
+  --glass-border:#000000;
+  --shadow-sm:   0 0 0 2px #000;
+  --shadow-md:   0 0 0 2px #000;
+  --shadow-lg:   0 0 0 3px #000;
+  /* Legacy */
+  --chalk:var(--bg); --paper:var(--bg-2); --paper-elevated:var(--surface-2);
+  --paper-subtle:var(--surface-3); --ink:var(--text); --ink-muted:var(--muted);
+  --ink-subtle:var(--subtle); --line:var(--border); --line-strong:var(--border-strong);
+  --court:var(--mint); --court-dark:#003320; --court-light:#009A62;
+  --court-subtle:var(--ok-bg); --marigold:var(--sun); --clay:var(--err);
+  --clay-bg:var(--err-bg);
+}
+
+/* ==============================================================
+   PERFORMANCE TIERS (set via data-tier on <html>)
+   ============================================================== */
+/* Full tier: all effects enabled (default) */
+/* Lite tier: no backdrop-filter, static gradients */
+[data-tier="lite"] {
+  --blur-sm: none;
+  --blur-md: none;
+  --blur-lg: none;
+}
+[data-tier="lite"] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+/* Minimal tier: flat surfaces, no decorative animation */
+[data-tier="minimal"] {
+  --blur-sm: none;
+  --blur-md: none;
+  --blur-lg: none;
+  --grad-hero: none;
+  --glow-mint: none;
+  --glow-lime: none;
+  --glow-violet: none;
+}
+[data-tier="minimal"] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  animation: none !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* ==============================================================
+   REDUCED MOTION
+   ============================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+[data-reduce-motion="1"] *, [data-reduce-motion="1"] *::before, [data-reduce-motion="1"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

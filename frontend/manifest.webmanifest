@@ -1,0 +1,10 @@
+{
+  "name": "KhelSetu",
+  "short_name": "KhelSetu",
+  "description": "Offline-first fitness loop for colleges",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#EDF1EE",
+  "theme_color": "#17604F",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

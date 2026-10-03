@@ -1,0 +1,20 @@
+{
+  "name": "khelsetu",
+  "version": "0.1.0",
+  "description": "Offline-first collegiate fitness platform (SIH26196)",
+  "type": "module",
+  "scripts": {
+    "test": "npm run test:engine && npm run test:backend && npm run test:leaderboards && npm run test:chat && npm run test:feed && npm run test:meals && npm run test:assistant",
+    "test:engine": "node --test tests/engine.test.mjs",
+    "test:backend": "python -c \"import sys; sys.path.insert(0, 'tests'); import test_backend; [getattr(test_backend, f)() for f in dir(test_backend) if f.startswith('test_')]; print('ALL BACKEND TESTS PASSED')\"",
+    "test:leaderboards": "python -c \"import sys; sys.path.insert(0, 'tests'); import test_leaderboards; [getattr(test_leaderboards, f)() for f in dir(test_leaderboards) if f.startswith('test_')]; print('ALL LEADERBOARD TESTS PASSED')\"",
+    "test:chat": "python -c \"import sys; sys.path.insert(0, 'tests'); import test_chat; [getattr(test_chat, f)() for f in dir(test_chat) if f.startswith('test_')]; print('ALL CHAT TESTS PASSED')\"",
+    "test:feed": "python -c \"import sys; sys.path.insert(0, 'tests'); import test_feed; [getattr(test_feed, f)() for f in dir(test_feed) if f.startswith('test_')]; print('ALL FEED TESTS PASSED')\"",
+    "test:meals": "python -c \"import sys; sys.path.insert(0, 'tests'); import test_meals; [getattr(test_meals, f)() for f in dir(test_meals) if f.startswith('test_')]; print('ALL MEALS TESTS PASSED')\"",
+    "test:assistant": "python -c \"import sys; sys.path.insert(0, 'tests'); import test_assistant; [getattr(test_assistant, f)() for f in dir(test_assistant) if f.startswith('test_')]; print('ALL ASSISTANT TESTS PASSED')\"",
+    "sim:leaderboards": "python scripts/sim_leaderboards.py",
+    "eval:meals": "python scripts/eval_meals.py",
+    "eval:reps": "node scripts/eval_reps.mjs",
+    "start": "uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload"
+  }
+}

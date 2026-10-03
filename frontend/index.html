@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#07100D" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#F4F8F5" media="(prefers-color-scheme: light)">
+  <meta name="description" content="KhelSetu – Inclusive, privacy-first fitness platform for college campuses. Track your activity, join your squad, compete fairly.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="tokens.css?v=5">
+  <link rel="stylesheet" href="styles.css?v=5">
+  <title>KhelSetu — Campus Fitness</title>
+</head>
+<body style="background:#07100D;color:#F2FBF6">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       TOP BAR (slim, glass, safe-area-aware)
+       ════════════════════════════════════════════════════════════ -->
+  <header class="bar" id="bar" role="banner">
+    <a href="#app" class="brand" aria-label="KhelSetu — go to home" id="brandLink">
+      <!-- Bridge Logo Mark -->
+      <svg viewBox="0 0 36 36" width="32" height="32" aria-hidden="true" focusable="false">
+        <defs>
+          <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%"   stop-color="#2EE6A6"/>
+            <stop offset="100%" stop-color="#C6FF3D"/>
+          </linearGradient>
+        </defs>
+        <!-- Arch -->
+        <path d="M4 26 Q18 6 32 26" fill="none" stroke="url(#logoGrad)" stroke-width="2.8" stroke-linecap="round"/>
+        <!-- Planks (7) -->
+        <line x1="7"  y1="22" x2="7"  y2="27" stroke="#F2FBF6" stroke-width="2" stroke-linecap="round"/>
+        <line x1="11" y1="18" x2="11" y2="27" stroke="#F2FBF6" stroke-width="2" stroke-linecap="round"/>
+        <line x1="15" y1="15" x2="15" y2="27" stroke="#F2FBF6" stroke-width="2" stroke-linecap="round"/>
+        <line x1="18" y1="14" x2="18" y2="27" stroke="url(#logoGrad)" stroke-width="2.2" stroke-linecap="round"/>
+        <line x1="21" y1="15" x2="21" y2="27" stroke="#F2FBF6" stroke-width="2" stroke-linecap="round"/>
+        <line x1="25" y1="18" x2="25" y2="27" stroke="#F2FBF6" stroke-width="2" stroke-linecap="round"/>
+        <line x1="29" y1="22" x2="29" y2="27" stroke="#F2FBF6" stroke-width="2" stroke-linecap="round"/>
+        <!-- Road -->
+        <line x1="3" y1="28" x2="33" y2="28" stroke="#F2FBF6" stroke-width="1.8" stroke-linecap="round" opacity=".5"/>
+      </svg>
+      <span id="brandName">KhelSetu</span>
+    </a>
+
+    <div class="top-bar-actions">
+      <!-- Feed shortcut (shown only when logged in) -->
+      <button class="chip" id="feedHeaderBtn" title="Gym-Photo Feed" aria-label="Open Gym-Photo Feed" data-testid="feed-header-btn" hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="3"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+      </button>
+      <!-- Chat shortcut (shown only when logged in) -->
+      <button class="chip" id="chatHeaderBtn" title="Committee Chat" aria-label="Open Committee Chat" data-testid="chat-header-btn" hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </button>
+      <!-- Theme toggle -->
+      <button class="chip" id="themeToggle" title="Toggle Theme" aria-label="Toggle light or dark theme" data-testid="theme-toggle">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" id="themeIcon">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </button>
+      <!-- Sync / online chip -->
+      <button class="chip net-chip" id="netChip" aria-live="polite" aria-label="Sync status" data-testid="net-chip">
+        <i></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       DESKTOP NAV RAIL (hidden on mobile via CSS)
+       ════════════════════════════════════════════════════════════ -->
+  <nav class="nav-rail" id="navRail" aria-label="Main navigation" hidden>
+    <!-- Populated by JS -->
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       MAIN CONTENT
+       ════════════════════════════════════════════════════════════ -->
+  <main id="app" tabindex="-1" aria-label="Main content">
+    <!-- Skeleton placeholder until JS boots -->
+    <div class="skeleton" style="height:200px; border-radius:24px; margin-bottom:16px;"></div>
+    <div class="skeleton" style="height:52px; border-radius:16px; margin-bottom:12px;"></div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px">
+      <div class="skeleton" style="height:100px; border-radius:16px;"></div>
+      <div class="skeleton" style="height:100px; border-radius:16px;"></div>
+      <div class="skeleton" style="height:100px; border-radius:16px;"></div>
+      <div class="skeleton" style="height:100px; border-radius:16px;"></div>
+    </div>
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FLOATING BOTTOM NAV (phone/tablet)
+       ════════════════════════════════════════════════════════════ -->
+  <nav class="tabs" id="tabs" aria-label="Main navigation" hidden>
+    <!-- Populated by JS -->
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       KHELBUDDY AI FAB
+       ════════════════════════════════════════════════════════════ -->
+  <button class="assistant-fab" id="assistantFab"
+          title="Ask KhelBuddy AI"
+          aria-label="Open KhelBuddy AI Assistant"
+          data-testid="assistant-fab"
+          hidden>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+    </svg>
+  </button>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       CELEBRATION CANVAS (confetti, z-index 999)
+       ════════════════════════════════════════════════════════════ -->
+  <canvas id="celebrationCanvas" width="10" height="10" aria-hidden="true"></canvas>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       APP SCRIPT
+       ════════════════════════════════════════════════════════════ -->
+  <script>
+    // Force-unregister stale service workers so new CSS/JS loads fresh
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        var found = false;
+        regs.forEach(function(r) {
+          if (r.active && r.active.scriptURL && !r.active.scriptURL.includes('v4-neon')) {
+            r.unregister(); found = true;
+          }
+        });
+        if (found) { caches.keys().then(function(ks) { ks.forEach(function(k) { caches.delete(k); }); }); }
+      });
+    }
+  </script>
+  <script type="module" src="app.js?v=5"></script>
+</body>
+</html>

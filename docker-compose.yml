@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  khelsetu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: khelsetu:latest
+    container_name: khelsetu-app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEMO=1
+      - K_ANON=10
+      - PORT=8000
+    volumes:
+      - khelsetu-data:/app/backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  khelsetu-data:

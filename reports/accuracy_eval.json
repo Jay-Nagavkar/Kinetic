@@ -1,0 +1,80 @@
+{
+  "repTraces": [
+    {
+      "file": "syn_pushup_13reps.json",
+      "source": "synthetic",
+      "exercise": "pushup",
+      "gt": 13,
+      "emaPred": 13,
+      "emaError": 0,
+      "oneEuroPred": 13,
+      "oneEuroError": 0,
+      "worldPred": 13,
+      "worldError": 0
+    },
+    {
+      "file": "syn_squat_13reps.json",
+      "source": "synthetic",
+      "exercise": "squat",
+      "gt": 13,
+      "emaPred": 13,
+      "emaError": 0,
+      "oneEuroPred": 13,
+      "oneEuroError": 0,
+      "worldPred": 13,
+      "worldError": 0
+    }
+  ],
+  "balTraces": [
+    {
+      "file": "syn_balance_12s.json",
+      "source": "synthetic",
+      "exercise": "balance",
+      "gt": 12000,
+      "emaPred": 12080,
+      "emaError": 80,
+      "oneEuroPred": 12080,
+      "oneEuroError": 80,
+      "worldPred": 12080,
+      "worldError": 80
+    }
+  ],
+  "traces": [
+    {
+      "file": "syn_balance_12s.json",
+      "source": "synthetic",
+      "exercise": "balance",
+      "gt": 12000,
+      "emaPred": 12080,
+      "emaError": 80,
+      "oneEuroPred": 12080,
+      "oneEuroError": 80,
+      "worldPred": 12080,
+      "worldError": 80
+    },
+    {
+      "file": "syn_pushup_13reps.json",
+      "source": "synthetic",
+      "exercise": "pushup",
+      "gt": 13,
+      "emaPred": 13,
+      "emaError": 0,
+      "oneEuroPred": 13,
+      "oneEuroError": 0,
+      "worldPred": 13,
+      "worldError": 0
+    },
+    {
+      "file": "syn_squat_13reps.json",
+      "source": "synthetic",
+      "exercise": "squat",
+      "gt": 13,
+      "emaPred": 13,
+      "emaError": 0,
+      "oneEuroPred": 13,
+      "oneEuroError": 0,
+      "worldPred": 13,
+      "worldError": 0
+    }
+  ]
+}

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="tokens.css?v=5">
+  <link rel="stylesheet" href="styles.css?v=5">
+  <title>KhelSetu CSS Diagnostic</title>
+  <style>
+    .diag { padding: 20px; max-width: 600px; margin: 80px auto; }
+    .diag h1 { margin-bottom: 16px; }
+    .swatch { display: inline-block; width: 60px; height: 40px; border-radius: 8px; border: 1px solid rgba(255,255,255,.2); margin: 4px; vertical-align: middle; }
+    .row { margin: 12px 0; }
+    .label { display: inline-block; width: 100px; font-size: 14px; }
+  </style>
+</head>
+<body style="background:#07100D;color:#F2FBF6">
+  <div class="diag">
+    <h1>🧪 CSS Diagnostic</h1>
+    <p>If you can see colored swatches below, CSS variables are working:</p>
+
+    <div class="row"><span class="label">--bg</span><span class="swatch" style="background:var(--bg)"></span> <code id="bg"></code></div>
+    <div class="row"><span class="label">--text</span><span class="swatch" style="background:var(--text)"></span> <code id="text"></code></div>
+    <div class="row"><span class="label">--mint</span><span class="swatch" style="background:var(--mint)"></span> <code id="mint"></code></div>
+    <div class="row"><span class="label">--lime</span><span class="swatch" style="background:var(--lime)"></span> <code id="lime"></code></div>
+    <div class="row"><span class="label">--sky</span><span class="swatch" style="background:var(--sky)"></span> <code id="sky"></code></div>
+    <div class="row"><span class="label">--coral</span><span class="swatch" style="background:var(--coral)"></span> <code id="coral"></code></div>
+    <div class="row"><span class="label">--orange</span><span class="swatch" style="background:var(--orange)"></span> <code id="orange"></code></div>
+    <div class="row"><span class="label">--violet</span><span class="swatch" style="background:var(--violet)"></span> <code id="violet"></code></div>
+    <div class="row"><span class="label">--sun</span><span class="swatch" style="background:var(--sun)"></span> <code id="sun"></code></div>
+    <div class="row"><span class="label">--surface</span><span class="swatch" style="background:var(--surface)"></span> <code id="surface"></code></div>
+
+    <h2 style="margin-top:24px">Component Test</h2>
+    <button class="btn primary" style="margin:8px 0">Primary Button (gradient)</button>
+    <button class="btn alt" style="margin:8px 0">Alt Button (outline)</button>
+    <div class="card" style="margin:12px 0;padding:16px">
+      <p>This is a <strong>card</strong> — should have background + border</p>
+    </div>
+    <div class="tile" style="margin:12px 0">
+      <div class="tile-label">Tile Label</div>
+      <div class="tile-sub">Tile subtitle</div>
+    </div>
+    <span class="chip" style="margin:8px">Chip</span>
+    <span class="pill ok" style="margin:8px">Pill OK</span>
+
+    <h2 style="margin-top:24px">Theme</h2>
+    <p>Current data-theme: <strong id="themeVal"></strong></p>
+    <button class="btn sm" onclick="toggle()" style="width:auto;margin:8px 0">Toggle Theme</button>
+  </div>
+
+  <script>
+    // Unregister any old SW
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(r => r.forEach(sw => sw.unregister()));
+      caches.keys().then(ks => ks.forEach(k => caches.delete(k)));
+    }
+
+    const s = getComputedStyle(document.documentElement);
+    ['bg','text','mint','lime','sky','coral','orange','violet','sun','surface'].forEach(v => {
+      const el = document.getElementById(v);
+      if (el) el.textContent = s.getPropertyValue('--' + v).trim() || '(undefined!)';
+    });
+    document.getElementById('themeVal').textContent = document.documentElement.getAttribute('data-theme');
+
+    function toggle() {
+      const cur = document.documentElement.getAttribute('data-theme');
+      const nxt = cur === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', nxt);
+      document.getElementById('themeVal').textContent = nxt;
+      document.body.style.background = '';
+      document.body.style.color = '';
+    }
+  </script>
+</body>
+</html>
