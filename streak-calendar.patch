@@ -1,0 +1,464 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 711bc67..dd85412 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,19 @@
+ 
+ All notable changes to the KhelSetu project will be documented in this file.
+ 
++## [Unreleased] - 2026-10-03
++
++### Added
++- **Daily streak + GitHub-style activity calendar** on the home screen: 26 Monday-first weeks of day squares shaded by credited minutes (FitCheck sessions, logged time and officer-verified sessions all count), with current streak, longest streak and active-day totals. A day counts at 10+ credited minutes; one rest day in a row never breaks the streak (`STREAK_REST_GRACE` in `frontend/engine.js`, set to 0 for strict streaks). Computed offline from the local event log; tap a square to see its date and minutes. Pure helpers (`dailyCredits`, `heatLevel`, `streakStats`, `buildCalendar`) are unit-tested in `tests/engine.test.mjs`.
++- Heat-scale tokens for Dark, Light and High-Contrast themes; English and Hindi strings.
++
++### Changed
++- The header streak chip and milestone share card now show the consecutive-day streak instead of active days this week.
++
++### Fixed
++- Removed hardcoded dark inline colors on `<body>` in `frontend/index.html` that kept Light and High-Contrast themes showing near-white text on a dark page.
++- Bumped service-worker cache (`khelsetu-v5-streak-calendar`) and asset query strings so installed PWAs pick up the update.
++
+ ## [0.3.0-P2-P3] - 2026-10-02
+ 
+ ### Added
+diff --git a/frontend/app.js b/frontend/app.js
+index 99f065e..96957cb 100644
+--- a/frontend/app.js
++++ b/frontend/app.js
+@@ -1,4 +1,4 @@
+-import { RepTest, BalanceTest, TEST_CONFIG, baselineFrom, weeklyGoal, DAILY_CREDIT_CAP_MIN, UNVERIFIED_WEIGHT, BANDS } from './engine.js';
++import { RepTest, BalanceTest, TEST_CONFIG, baselineFrom, weeklyGoal, DAILY_CREDIT_CAP_MIN, UNVERIFIED_WEIGHT, BANDS, ACTIVE_DAY_MIN, CALENDAR_WEEKS, istDayNumber, dailyCredits, streakStats, buildCalendar, dayNumberToISO } from './engine.js';
+ import { kvGet, kvSet, addEvent, allEvents, unsynced, wipeAll, trySync, api, net, isOnline, getDevicePublicKey } from './store.js';
+ import { t, setLang, getLang, STR } from './i18n.js';
+ import { createSource } from './pose.js';
+@@ -133,7 +133,13 @@ async function localState() {
+   evList.filter((e) => e && e.type === 'assessment').sort((a, b) => (a.ts || 0) - (b.ts || 0)).forEach((e) => { if (e.payload?.kind) latest[e.payload.kind] = e.payload; });
+   
+   // Streak calculation (days with >=10 credited mins, rest days protected)
+-  const activeDaysThisWeek = credited.filter((v) => v >= 10).length;
++  const activeDaysThisWeek = credited.filter((v) => v >= ACTIVE_DAY_MIN).length;
++
++  // Daily streak + GitHub-style calendar (all-time history, computed offline from the local event log)
++  const dayMap = dailyCredits(evList);
++  const todayNum = istDayNumber(Date.now());
++  const streak = streakStats(dayMap, todayNum);
++  const calendar = buildCalendar(dayMap, todayNum, CALENDAR_WEEKS);
+   
+   // Retest records
+   const retests = evList.filter((e) => e && e.type === 'baseline');
+@@ -148,6 +154,8 @@ async function localState() {
+     todayIdx: Math.max(0, Math.min(6, Math.floor((Date.now() - ws) / DAY))),
+     latest,
+     activeDaysThisWeek,
++    streak,
++    calendar,
+     hasRetest
+   };
+ }
+@@ -450,6 +458,65 @@ async function register() {
+   }
+ }
+ 
++// ---------------------------------------------------------------- streak calendar (GitHub-style contribution grid)
++function calendarCardHTML(st) {
++  const { columns, activeInWindow } = st.calendar;
++  const lang = getLang() === 'hi' ? 'hi-IN' : 'en-IN';
++  const monthFmt = new Intl.DateTimeFormat(lang, { month: 'short', timeZone: 'UTC' });
++  const wkFmt = new Intl.DateTimeFormat(lang, { weekday: 'short', timeZone: 'UTC' });
++  const dayNames = Array.from({ length: 7 }, (_, i) => wkFmt.format(new Date(Date.UTC(2026, 9, 5 + i)))); // 2026-10-05 is a Monday
++
++  // Month labels sit above the first column of each month; skip one that would collide with the previous label.
++  let lastLabelCol = -9;
++  const monthLabels = columns.map((c, i) => {
++    if (c.month === null || i - lastLabelCol < 3) return '';
++    lastLabelCol = i;
++    return `<span class="cal-month" style="grid-column:${i + 2};grid-row:1">${monthFmt.format(new Date(Date.UTC(2026, c.month, 1)))}</span>`;
++  }).join('');
++  const weekdayLabels = [0, 2, 4].map((r) => `<span class="cal-dow" style="grid-column:1;grid-row:${r + 2}">${dayNames[r]}</span>`).join('');
++  const cells = columns.map((c, i) => c.days.map((d, r) => d.future ? '' :
++    `<div class="cal-cell lv${d.level}${d.today ? ' today' : ''}" data-day="${d.day}" data-mins="${d.mins}" style="grid-column:${i + 2};grid-row:${r + 2}" aria-hidden="true"></div>`
++  ).join('')).join('');
++  const summary = `${t('calTitle')}: ${activeInWindow} ${t('calActiveDays')}, ${st.streak.current} ${t('dayStreak')}`;
++
++  return `
++    <div class="card cal-card" data-testid="streak-calendar">
++      <div class="cal-head">
++        <div>
++          <div class="bold" style="font-family:var(--font-display)">${t('calTitle')}</div>
++          <div class="muted small">${t('calSub').replace('{n}', ACTIVE_DAY_MIN).replace('{w}', CALENDAR_WEEKS)}</div>
++        </div>
++      </div>
++      <div class="cal-stats">
++        <div><b data-testid="streak-current">${st.streak.current}</b><span>${t('streakCurrent')}</span></div>
++        <div><b data-testid="streak-longest">${st.streak.longest}</b><span>${t('streakLongest')}</span></div>
++        <div><b>${activeInWindow}</b><span>${t('calActiveDays')}</span></div>
++      </div>
++      <div class="cal-scroll">
++        <div class="cal-grid" role="img" aria-label="${summary}" style="--weeks:${columns.length}">
++          ${monthLabels}${weekdayLabels}${cells}
++        </div>
++      </div>
++      <div class="cal-foot">
++        <span class="muted small">${t('calRestNote')}</span>
++        <span class="cal-legend" aria-hidden="true">${t('calLess')}
++          ${[0, 1, 2, 3, 4].map((l) => `<i class="cal-cell lv${l}"></i>`).join('')}
++          ${t('calMore')}</span>
++      </div>
++    </div>`;
++}
++
++function wireCalendar() {
++  const grid = $('.cal-grid');
++  if (!grid) return;
++  grid.addEventListener('click', (e) => {
++    const c = e.target.closest('.cal-cell[data-day]');
++    if (!c) return;
++    const date = new Intl.DateTimeFormat(getLang() === 'hi' ? 'hi-IN' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(dayNumberToISO(Number(c.dataset.day)) + 'T00:00:00Z'));
++    toast(`${date}: ${c.dataset.mins} ${t('minutes')}`);
++  });
++}
++
+ // ---------------------------------------------------------------- home: Neon Arena bento redesign
+ const dayLabels = () => Array.from({ length: 7 }, (_, i) => new Intl.DateTimeFormat(getLang() === 'hi' ? 'hi-IN' : 'en-IN', { weekday: 'narrow', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 9, 5 + i))));
+ 
+@@ -489,10 +556,11 @@ async function viewHome() {
+     { id: 'squad',       earned: !!S.profile,                           name: t('b_squad'),       desc: t('b_squad_desc') }
+   ];
+ 
+-  // Streak chip
+-  const streakChip = activeDays > 0
+-    ? `<span class="streak-chip" aria-label="${activeDays} ${t('streakDays')}" title="${t('streakProtectedHint')}">🔥 ${activeDays} ${t('streakDays')}</span>`
+-    : `<span class="streak-chip" style="background:rgba(76,201,240,.12);border-color:rgba(76,201,240,.25);color:var(--sky)" title="${t('streakProtectedHint')}">🛡 ${t('streakFrozen')}</span>`;
++  // Streak chip: consecutive active days (one rest day in a row never breaks it)
++  const streakN = st.streak.current;
++  const streakChip = streakN > 0
++    ? `<span class="streak-chip" data-testid="streak-chip" aria-label="${streakN} ${t('dayStreak')}" title="${t('streakProtectedHint')}">🔥 ${streakN} ${t('dayStreak')}</span>`
++    : `<span class="streak-chip" data-testid="streak-chip" style="background:rgba(76,201,240,.12);border-color:rgba(76,201,240,.25);color:var(--sky)" title="${t('streakProtectedHint')}">🛡 ${t('streakFrozen')}</span>`;
+ 
+   app.innerHTML = `
+     <!-- Greeting Row -->
+@@ -554,6 +622,8 @@ async function viewHome() {
+     </button>
+     <button class="btn alt" id="log" data-testid="home-log-btn" style="margin-bottom:16px;">${t('logActive')}</button>
+ 
++    ${calendarCardHTML(st)}
++
+     <!-- Bento Tiles -->
+     <div class="bento" role="list">
+       <div class="tile squad wide" id="homeChatBtn" data-testid="home-chat-tile" role="listitem" tabindex="0" aria-label="${t('chat')}">
+@@ -632,6 +702,8 @@ async function viewHome() {
+     <div style="height:8px"></div>
+   `;
+ 
++  wireCalendar();
++
+   // Wire up tiles + buttons
+   const wire = (id, fn) => { const el = $(`#${id}`); if (el) { el.onclick = fn; el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } }; } };
+   wire('homeFeedBtn',      () => { haptic(25); go('feed'); });
+@@ -1766,7 +1838,7 @@ async function shareMilestoneCard() {
+     name: S.profile?.name,
+     squad: sqName,
+     minutes: st.total,
+-    streak: st.activeDaysThisWeek,
++    streak: st.streak.current,
+     completion: pct
+   });
+ 
+diff --git a/frontend/engine.js b/frontend/engine.js
+index 2dbf1e0..88b2889 100644
+--- a/frontend/engine.js
++++ b/frontend/engine.js
+@@ -323,3 +323,75 @@ export function weeklyGoal(band, weeksSinceStart = 0, gentle = false) {
+ // Daily credit cap and manual-entry weight (mirrored on the server). [D]
+ export const DAILY_CREDIT_CAP_MIN = 60;
+ export const UNVERIFIED_WEIGHT = 0.5;
++
++// ---------------------------------------------------------------- daily streak + activity calendar
++// Pure functions (no DOM): shared by the home screen and unit-tested in tests/engine.test.mjs.
++// Days are integer "IST day numbers" (days since 1970-01-01 in India time), so the calendar,
++// the streak and the weekly goal all agree on where midnight is.
++export const ACTIVE_DAY_MIN = 10;       // credited minutes for a day to count toward the streak
++export const STREAK_REST_GRACE = 1;     // inactive days in a row that never break a streak (0 = strict)
++export const CALENDAR_WEEKS = 26;       // ~6 months, Monday-first columns like the weekly goal
++const IST_MS = 19800000, DAY_MS = 86400000;
++
++export const istDayNumber = (ts) => Math.floor((ts + IST_MS) / DAY_MS);
++/** 0 = Monday ... 6 = Sunday for an IST day number (1970-01-01 was a Thursday). */
++export const dayOfWeek = (dayNum) => (((dayNum + 3) % 7) + 7) % 7;
++export const dayNumberToISO = (dayNum) => new Date(dayNum * DAY_MS).toISOString().slice(0, 10);
++
++/** Map<dayNumber, creditedMinutes> from the local event log (same weighting and daily cap as the weekly goal). */
++export function dailyCredits(events) {
++  const sums = new Map();
++  for (const e of events || []) {
++    if (!e || e.type !== 'activity' || !e.payload || !Number.isFinite(e.ts)) continue;
++    const d = istDayNumber(e.ts);
++    sums.set(d, (sums.get(d) || 0) + (Number(e.payload.minutes) || 0) * (e.payload.verified ? 1 : UNVERIFIED_WEIGHT));
++  }
++  for (const [d, v] of sums) sums.set(d, Math.min(v, DAILY_CREDIT_CAP_MIN));
++  return sums;
++}
++
++/** 0 = no activity, 1 = some (under the streak threshold), 2-4 = counts toward the streak, darker = more minutes. */
++export function heatLevel(mins) {
++  if (!(mins > 0)) return 0;
++  if (mins < ACTIVE_DAY_MIN) return 1;
++  if (mins < 25) return 2;
++  if (mins < 45) return 3;
++  return 4;
++}
++
++/**
++ * Current and longest streak. A streak counts active days; up to `grace` inactive days in a row
++ * (rest days) never break it. Today is still in progress, so an inactive today never breaks it.
++ */
++export function streakStats(dayMap, todayNum, grace = STREAK_REST_GRACE) {
++  const active = [...dayMap].filter(([d, v]) => d <= todayNum && v >= ACTIVE_DAY_MIN).map(([d]) => d).sort((a, b) => a - b);
++  let run = 0, longest = 0, prev = null;
++  for (const d of active) {
++    run = prev !== null && d - prev - 1 <= grace ? run + 1 : 1;
++    longest = Math.max(longest, run);
++    prev = d;
++  }
++  const alive = prev !== null && todayNum - prev - 1 <= grace;
++  return { current: alive ? run : 0, longest, totalActiveDays: active.length, activeToday: prev === todayNum };
++}
++
++/** GitHub-style grid: `weeks` Monday-first columns ending with the current week. */
++export function buildCalendar(dayMap, todayNum, weeks = CALENDAR_WEEKS) {
++  const start = todayNum - dayOfWeek(todayNum) - (weeks - 1) * 7;
++  const columns = [];
++  let activeInWindow = 0, lastMonth = -1;
++  for (let w = 0; w < weeks; w++) {
++    const days = [];
++    for (let r = 0; r < 7; r++) {
++      const day = start + w * 7 + r;
++      const future = day > todayNum;
++      const mins = future ? 0 : (dayMap.get(day) || 0);
++      if (!future && mins >= ACTIVE_DAY_MIN) activeInWindow++;
++      days.push({ day, mins: Math.round(mins), level: future ? 0 : heatLevel(mins), future, today: day === todayNum });
++    }
++    const month = new Date(days[0].day * DAY_MS).getUTCMonth();
++    columns.push({ days, month: month !== lastMonth ? month : null });
++    lastMonth = month;
++  }
++  return { columns, activeInWindow, startDay: start };
++}
+diff --git a/frontend/i18n.js b/frontend/i18n.js
+index 4175b10..4874e39 100644
+--- a/frontend/i18n.js
++++ b/frontend/i18n.js
+@@ -62,6 +62,15 @@ export const STR = {
+     streakDays: 'days active',
+     streakFrozen: 'Rest Day (Protected)',
+     streakProtectedHint: 'Rest is part of fitness. Streak freezes keep your habit intact without guilt.',
++    dayStreak: 'day streak',
++    streakCurrent: 'Current streak',
++    streakLongest: 'Longest streak',
++    calTitle: 'Activity calendar',
++    calSub: 'Last {w} weeks · a day counts with {n}+ active minutes',
++    calActiveDays: 'active days',
++    calRestNote: 'One rest day never breaks your streak.',
++    calLess: 'Less',
++    calMore: 'More',
+     badgesTitle: 'Your Milestones',
+     b_consistency: 'Consistency Star',
+     b_consistency_desc: '3+ active days this week',
+@@ -209,6 +218,15 @@ export const STR = {
+     streakDays: 'सक्रिय दिन',
+     streakFrozen: 'आराम का दिन (सुरक्षित)',
+     streakProtectedHint: 'आराम भी फिटनेस का हिस्सा है। स्ट्रीक फ़्रीज़ बिना किसी अपराधबोध के आपकी आदत बनाए रखता है।',
++    dayStreak: 'दिन की स्ट्रीक',
++    streakCurrent: 'मौजूदा स्ट्रीक',
++    streakLongest: 'सबसे लंबी स्ट्रीक',
++    calTitle: 'गतिविधि कैलेंडर',
++    calSub: 'पिछले {w} सप्ताह · {n}+ सक्रिय मिनट वाला दिन गिना जाता है',
++    calActiveDays: 'सक्रिय दिन',
++    calRestNote: 'आराम का एक दिन आपकी स्ट्रीक नहीं तोड़ता।',
++    calLess: 'कम',
++    calMore: 'ज़्यादा',
+     badgesTitle: 'आपकी उपलब्धियाँ',
+     b_consistency: 'नियमितता सितारा',
+     b_consistency_desc: 'इस सप्ताह 3+ सक्रिय दिन',
+diff --git a/frontend/index.html b/frontend/index.html
+index cf7450f..2b69d79 100644
+--- a/frontend/index.html
++++ b/frontend/index.html
+@@ -10,11 +10,11 @@
+   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+   <link rel="manifest" href="manifest.webmanifest">
+   <link rel="icon" href="icon.svg" type="image/svg+xml">
+-  <link rel="stylesheet" href="tokens.css?v=5">
+-  <link rel="stylesheet" href="styles.css?v=5">
++  <link rel="stylesheet" href="tokens.css?v=6">
++  <link rel="stylesheet" href="styles.css?v=6">
+   <title>KhelSetu — Campus Fitness</title>
+ </head>
+-<body style="background:#07100D;color:#F2FBF6">
++<body>
+ 
+   <!-- ═══════════════════════════════════════════════════════════
+        TOP BAR (slim, glass, safe-area-aware)
+@@ -146,6 +146,6 @@
+       });
+     }
+   </script>
+-  <script type="module" src="app.js?v=5"></script>
++  <script type="module" src="app.js?v=6"></script>
+ </body>
+ </html>
+diff --git a/frontend/styles.css b/frontend/styles.css
+index 1570959..829eab4 100644
+--- a/frontend/styles.css
++++ b/frontend/styles.css
+@@ -1582,3 +1582,36 @@ input:focus, select:focus, textarea:focus {
+ }
+ /* No horizontal scroll guard */
+ .no-scroll-x { overflow-x: hidden; }
++
++/* ---- Streak calendar (GitHub-style) ---- */
++.cal-card { margin: 0 0 var(--sp-4); }
++.cal-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); margin: var(--sp-3) 0; }
++.cal-stats > div { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 6px; text-align: center; }
++.cal-stats b { display: block; font-family: var(--font-display); font-size: var(--text-lg); line-height: 1.1; }
++.cal-stats span { display: block; font-size: var(--text-xs); color: var(--muted); margin-top: 2px; }
++.cal-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
++.cal-grid {
++  display: grid;
++  grid-template-columns: 26px repeat(var(--weeks, 26), minmax(9px, 1fr));
++  grid-template-rows: auto repeat(7, auto);
++  gap: 3px;
++  min-width: 300px;
++}
++.cal-month { font-size: 10px; color: var(--muted); white-space: nowrap; overflow: visible; line-height: 1.4; }
++.cal-dow { font-size: 10px; color: var(--muted); align-self: center; line-height: 1; }
++.cal-cell {
++  aspect-ratio: 1 / 1;
++  border-radius: 3px;
++  background: var(--heat-0);
++  box-shadow: inset 0 0 0 1px var(--heat-edge);
++  display: block;
++  cursor: pointer;
++}
++.cal-cell.lv1 { background: var(--heat-1); }
++.cal-cell.lv2 { background: var(--heat-2); }
++.cal-cell.lv3 { background: var(--heat-3); }
++.cal-cell.lv4 { background: var(--heat-4); }
++.cal-cell.today { outline: 2px solid var(--text); outline-offset: 1px; }
++.cal-foot { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); margin-top: var(--sp-3); flex-wrap: wrap; }
++.cal-legend { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; color: var(--muted); }
++.cal-legend .cal-cell { width: 11px; height: 11px; cursor: default; }
+diff --git a/frontend/sw.js b/frontend/sw.js
+index c84df08..283c65b 100644
+--- a/frontend/sw.js
++++ b/frontend/sw.js
+@@ -1,5 +1,5 @@
+ // Service worker: precache the app shell + pose runtime with Network-First strategy
+-const CACHE = 'khelsetu-v4-neon-arena';
++const CACHE = 'khelsetu-v5-streak-calendar';
+ 
+ const SHELL = [
+   './',
+diff --git a/frontend/tokens.css b/frontend/tokens.css
+index 609fd17..4ae7770 100644
+--- a/frontend/tokens.css
++++ b/frontend/tokens.css
+@@ -353,3 +353,29 @@
+   transition-duration: 0.01ms !important;
+   scroll-behavior: auto !important;
+ }
++
++/* ---- Activity calendar heat scale (streak calendar) ---- */
++:root {
++  --heat-0: rgba(255,255,255,.06);
++  --heat-1: rgba(46,230,166,.22);
++  --heat-2: rgba(46,230,166,.45);
++  --heat-3: rgba(46,230,166,.72);
++  --heat-4: #2EE6A6;
++  --heat-edge: transparent;
++}
++[data-theme="light"] {
++  --heat-0: #E4EDE8;
++  --heat-1: #C4E8D7;
++  --heat-2: #86D3AE;
++  --heat-3: #2FAE78;
++  --heat-4: #11804F;
++  --heat-edge: rgba(0,0,0,.06);
++}
++[data-theme="hc"] {
++  --heat-0: #FFFFFF;
++  --heat-1: #C8C8C8;
++  --heat-2: #8A8A8A;
++  --heat-3: #444444;
++  --heat-4: #000000;
++  --heat-edge: #000000;
++}
+diff --git a/tests/engine.test.mjs b/tests/engine.test.mjs
+index b0679f1..c54b4c9 100644
+--- a/tests/engine.test.mjs
++++ b/tests/engine.test.mjs
+@@ -1,6 +1,7 @@
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+-import { angle, angle3D, EMA, OneEuroFilter, RepTest, BalanceTest, baselineFrom, weeklyGoal, integrityVerdict } from '../frontend/engine.js';
++import { angle, angle3D, EMA, OneEuroFilter, RepTest, BalanceTest, baselineFrom, weeklyGoal, integrityVerdict,
++  istDayNumber, dayOfWeek, dailyCredits, heatLevel, streakStats, buildCalendar, ACTIVE_DAY_MIN } from '../frontend/engine.js';
+ import { simFrame, squatPose, pushupPose } from '../frontend/sim.js';
+ 
+ const FPS = 30;
+@@ -130,3 +131,54 @@ test('arm_raise: seated arm raise counts 13 reps accurately', () => {
+ });
+ 
+ 
++
++// ---- daily streak + activity calendar ----
++const istTs = (iso) => Date.parse(iso + '+05:30');
++const act = (iso, minutes, verified = true) => ({ type: 'activity', ts: istTs(iso), payload: { minutes, verified } });
++
++test('calendar days follow IST midnight, weeks start on Monday', () => {
++  assert.notEqual(istDayNumber(istTs('2026-10-05T00:30:00')), istDayNumber(istTs('2026-10-04T23:30:00')));
++  assert.equal(dayOfWeek(istDayNumber(istTs('2026-10-05T12:00:00'))), 0); // Monday
++  assert.equal(dayOfWeek(istDayNumber(istTs('2026-10-11T12:00:00'))), 6); // Sunday
++});
++
++test('dailyCredits: unverified minutes weigh half, daily cap applies, non-activity ignored', () => {
++  const m = dailyCredits([act('2026-10-05T07:00:00', 30, false), act('2026-10-05T18:00:00', 20, true),
++    act('2026-10-06T07:00:00', 500, true), { type: 'assessment', ts: istTs('2026-10-06T08:00:00'), payload: { minutes: 99 } }]);
++  assert.equal(m.get(istDayNumber(istTs('2026-10-05T12:00:00'))), 35);
++  assert.equal(m.get(istDayNumber(istTs('2026-10-06T12:00:00'))), 60);
++});
++
++test('heatLevel: none / some / counts, darker with more minutes', () => {
++  assert.deepEqual([0, 5, 10, 24, 25, 44, 45, 60].map(heatLevel), [0, 1, 2, 2, 3, 3, 4, 4]);
++});
++
++test('streak: consecutive days count, one rest day is protected, two break it', () => {
++  const today = istDayNumber(istTs('2026-10-10T12:00:00'));
++  const mk = (...offsets) => new Map(offsets.map((o) => [today - o, ACTIVE_DAY_MIN]));
++  assert.equal(streakStats(mk(2, 1, 0), today).current, 3);
++  assert.equal(streakStats(mk(3, 2, 0), today).current, 3);          // 1 rest day between: still alive
++  assert.equal(streakStats(mk(4, 3, 0), today).current, 1);          // 2 rest days in a row: today starts a new run
++  assert.equal(streakStats(mk(4, 3, 0), today).longest, 2);
++  assert.equal(streakStats(mk(2, 1), today).current, 2);             // today not done yet: streak alive
++  assert.equal(streakStats(mk(3, 2), today).current, 2);             // yesterday empty (protected rest day), today pending
++  assert.equal(streakStats(mk(4, 3), today).current, 0);             // two empty days in a row: streak is over
++  assert.equal(streakStats(mk(3, 2), today, 0).current, 0);          // strict mode (grace 0): yesterday empty breaks it
++  assert.equal(streakStats(mk(1, 0), today, 0).current, 2);          // strict mode still counts consecutive days
++  assert.equal(streakStats(mk(20, 19, 18, 10, 0), today).longest, 3);
++  assert.equal(streakStats(new Map(), today).current, 0);
++  assert.equal(streakStats(new Map([[today, 9]]), today).current, 0); // under the threshold doesn't count
++});
++
++test('calendar grid: 26 Monday-first columns ending this week, no future cells counted', () => {
++  const today = istDayNumber(istTs('2026-10-07T12:00:00')); // Wednesday
++  const cal = buildCalendar(new Map([[today, 30], [today - 1, 12]]), today, 26);
++  assert.equal(cal.columns.length, 26);
++  assert.ok(cal.columns.every((c) => c.days.length === 7 && dayOfWeek(c.days[0].day) === 0));
++  const last = cal.columns[25].days;
++  assert.equal(last[2].today, true);
++  assert.ok(last.slice(3).every((d) => d.future));
++  assert.equal(last[2].level, 3);
++  assert.equal(cal.activeInWindow, 2);
++  assert.ok(cal.columns[0].month !== null);
++});
