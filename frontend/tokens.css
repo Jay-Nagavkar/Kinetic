@@ -353,3 +353,29 @@
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+/* ---- Activity calendar heat scale (streak calendar) ---- */
+:root {
+  --heat-0: rgba(255,255,255,.06);
+  --heat-1: rgba(46,230,166,.22);
+  --heat-2: rgba(46,230,166,.45);
+  --heat-3: rgba(46,230,166,.72);
+  --heat-4: #2EE6A6;
+  --heat-edge: transparent;
+}
+[data-theme="light"] {
+  --heat-0: #E4EDE8;
+  --heat-1: #C4E8D7;
+  --heat-2: #86D3AE;
+  --heat-3: #2FAE78;
+  --heat-4: #11804F;
+  --heat-edge: rgba(0,0,0,.06);
+}
+[data-theme="hc"] {
+  --heat-0: #FFFFFF;
+  --heat-1: #C8C8C8;
+  --heat-2: #8A8A8A;
+  --heat-3: #444444;
+  --heat-4: #000000;
+  --heat-edge: #000000;
+}

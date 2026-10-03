@@ -1,4 +1,4 @@
-import { RepTest, BalanceTest, TEST_CONFIG, baselineFrom, weeklyGoal, DAILY_CREDIT_CAP_MIN, UNVERIFIED_WEIGHT, BANDS } from './engine.js';
+import { RepTest, BalanceTest, TEST_CONFIG, baselineFrom, weeklyGoal, DAILY_CREDIT_CAP_MIN, UNVERIFIED_WEIGHT, BANDS, ACTIVE_DAY_MIN, CALENDAR_WEEKS, istDayNumber, dailyCredits, streakStats, buildCalendar, dayNumberToISO } from './engine.js';
 import { kvGet, kvSet, addEvent, allEvents, unsynced, wipeAll, trySync, api, net, isOnline, getDevicePublicKey } from './store.js';
 import { t, setLang, getLang, STR } from './i18n.js';
 import { createSource } from './pose.js';
@@ -133,7 +133,13 @@ async function localState() {
   evList.filter((e) => e && e.type === 'assessment').sort((a, b) => (a.ts || 0) - (b.ts || 0)).forEach((e) => { if (e.payload?.kind) latest[e.payload.kind] = e.payload; });
   
   // Streak calculation (days with >=10 credited mins, rest days protected)
-  const activeDaysThisWeek = credited.filter((v) => v >= 10).length;
+  const activeDaysThisWeek = credited.filter((v) => v >= ACTIVE_DAY_MIN).length;
+
+  // Daily streak + GitHub-style calendar (all-time history, computed offline from the local event log)
+  const dayMap = dailyCredits(evList);
+  const todayNum = istDayNumber(Date.now());
+  const streak = streakStats(dayMap, todayNum);
+  const calendar = buildCalendar(dayMap, todayNum, CALENDAR_WEEKS);
   
   // Retest records
   const retests = evList.filter((e) => e && e.type === 'baseline');
@@ -148,6 +154,8 @@ async function localState() {
     todayIdx: Math.max(0, Math.min(6, Math.floor((Date.now() - ws) / DAY))),
     latest,
     activeDaysThisWeek,
+    streak,
+    calendar,
     hasRetest
   };
 }
@@ -450,6 +458,65 @@ async function register() {
   }
 }
 
+// ---------------------------------------------------------------- streak calendar (GitHub-style contribution grid)
+function calendarCardHTML(st) {
+  const { columns, activeInWindow } = st.calendar;
+  const lang = getLang() === 'hi' ? 'hi-IN' : 'en-IN';
+  const monthFmt = new Intl.DateTimeFormat(lang, { month: 'short', timeZone: 'UTC' });
+  const wkFmt = new Intl.DateTimeFormat(lang, { weekday: 'short', timeZone: 'UTC' });
+  const dayNames = Array.from({ length: 7 }, (_, i) => wkFmt.format(new Date(Date.UTC(2026, 9, 5 + i)))); // 2026-10-05 is a Monday
+
+  // Month labels sit above the first column of each month; skip one that would collide with the previous label.
+  let lastLabelCol = -9;
+  const monthLabels = columns.map((c, i) => {
+    if (c.month === null || i - lastLabelCol < 3) return '';
+    lastLabelCol = i;
+    return `<span class="cal-month" style="grid-column:${i + 2};grid-row:1">${monthFmt.format(new Date(Date.UTC(2026, c.month, 1)))}</span>`;
+  }).join('');
+  const weekdayLabels = [0, 2, 4].map((r) => `<span class="cal-dow" style="grid-column:1;grid-row:${r + 2}">${dayNames[r]}</span>`).join('');
+  const cells = columns.map((c, i) => c.days.map((d, r) => d.future ? '' :
+    `<div class="cal-cell lv${d.level}${d.today ? ' today' : ''}" data-day="${d.day}" data-mins="${d.mins}" style="grid-column:${i + 2};grid-row:${r + 2}" aria-hidden="true"></div>`
+  ).join('')).join('');
+  const summary = `${t('calTitle')}: ${activeInWindow} ${t('calActiveDays')}, ${st.streak.current} ${t('dayStreak')}`;
+
+  return `
+    <div class="card cal-card" data-testid="streak-calendar">
+      <div class="cal-head">
+        <div>
+          <div class="bold" style="font-family:var(--font-display)">${t('calTitle')}</div>
+          <div class="muted small">${t('calSub').replace('{n}', ACTIVE_DAY_MIN).replace('{w}', CALENDAR_WEEKS)}</div>
+        </div>
+      </div>
+      <div class="cal-stats">
+        <div><b data-testid="streak-current">${st.streak.current}</b><span>${t('streakCurrent')}</span></div>
+        <div><b data-testid="streak-longest">${st.streak.longest}</b><span>${t('streakLongest')}</span></div>
+        <div><b>${activeInWindow}</b><span>${t('calActiveDays')}</span></div>
+      </div>
+      <div class="cal-scroll">
+        <div class="cal-grid" role="img" aria-label="${summary}" style="--weeks:${columns.length}">
+          ${monthLabels}${weekdayLabels}${cells}
+        </div>
+      </div>
+      <div class="cal-foot">
+        <span class="muted small">${t('calRestNote')}</span>
+        <span class="cal-legend" aria-hidden="true">${t('calLess')}
+          ${[0, 1, 2, 3, 4].map((l) => `<i class="cal-cell lv${l}"></i>`).join('')}
+          ${t('calMore')}</span>
+      </div>
+    </div>`;
+}
+
+function wireCalendar() {
+  const grid = $('.cal-grid');
+  if (!grid) return;
+  grid.addEventListener('click', (e) => {
+    const c = e.target.closest('.cal-cell[data-day]');
+    if (!c) return;
+    const date = new Intl.DateTimeFormat(getLang() === 'hi' ? 'hi-IN' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(dayNumberToISO(Number(c.dataset.day)) + 'T00:00:00Z'));
+    toast(`${date}: ${c.dataset.mins} ${t('minutes')}`);
+  });
+}
+
 // ---------------------------------------------------------------- home: Neon Arena bento redesign
 const dayLabels = () => Array.from({ length: 7 }, (_, i) => new Intl.DateTimeFormat(getLang() === 'hi' ? 'hi-IN' : 'en-IN', { weekday: 'narrow', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 9, 5 + i))));
 
@@ -489,10 +556,11 @@ async function viewHome() {
     { id: 'squad',       earned: !!S.profile,                           name: t('b_squad'),       desc: t('b_squad_desc') }
   ];
 
-  // Streak chip
-  const streakChip = activeDays > 0
-    ? `<span class="streak-chip" aria-label="${activeDays} ${t('streakDays')}" title="${t('streakProtectedHint')}">🔥 ${activeDays} ${t('streakDays')}</span>`
-    : `<span class="streak-chip" style="background:rgba(76,201,240,.12);border-color:rgba(76,201,240,.25);color:var(--sky)" title="${t('streakProtectedHint')}">🛡 ${t('streakFrozen')}</span>`;
+  // Streak chip: consecutive active days (one rest day in a row never breaks it)
+  const streakN = st.streak.current;
+  const streakChip = streakN > 0
+    ? `<span class="streak-chip" data-testid="streak-chip" aria-label="${streakN} ${t('dayStreak')}" title="${t('streakProtectedHint')}">🔥 ${streakN} ${t('dayStreak')}</span>`
+    : `<span class="streak-chip" data-testid="streak-chip" style="background:rgba(76,201,240,.12);border-color:rgba(76,201,240,.25);color:var(--sky)" title="${t('streakProtectedHint')}">🛡 ${t('streakFrozen')}</span>`;
 
   app.innerHTML = `
     <!-- Greeting Row -->
@@ -553,6 +621,8 @@ async function viewHome() {
       ${st.base ? t('fitcheck') : t('takeFitcheck')}
     </button>
     <button class="btn alt" id="log" data-testid="home-log-btn" style="margin-bottom:16px;">${t('logActive')}</button>
+
+    ${calendarCardHTML(st)}
 
     <!-- Bento Tiles -->
     <div class="bento" role="list">
@@ -631,6 +701,8 @@ async function viewHome() {
     ${S.profile?.gentle ? `<p class="muted small" style="margin-top:12px">${t('stopIfPain')}</p>` : ''}
     <div style="height:8px"></div>
   `;
+
+  wireCalendar();
 
   // Wire up tiles + buttons
   const wire = (id, fn) => { const el = $(`#${id}`); if (el) { el.onclick = fn; el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } }; } };
@@ -1766,7 +1838,7 @@ async function shareMilestoneCard() {
     name: S.profile?.name,
     squad: sqName,
     minutes: st.total,
-    streak: st.activeDaysThisWeek,
+    streak: st.streak.current,
     completion: pct
   });
 

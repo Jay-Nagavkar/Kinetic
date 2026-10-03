@@ -323,3 +323,75 @@ export function weeklyGoal(band, weeksSinceStart = 0, gentle = false) {
 // Daily credit cap and manual-entry weight (mirrored on the server). [D]
 export const DAILY_CREDIT_CAP_MIN = 60;
 export const UNVERIFIED_WEIGHT = 0.5;
+
+// ---------------------------------------------------------------- daily streak + activity calendar
+// Pure functions (no DOM): shared by the home screen and unit-tested in tests/engine.test.mjs.
+// Days are integer "IST day numbers" (days since 1970-01-01 in India time), so the calendar,
+// the streak and the weekly goal all agree on where midnight is.
+export const ACTIVE_DAY_MIN = 10;       // credited minutes for a day to count toward the streak
+export const STREAK_REST_GRACE = 1;     // inactive days in a row that never break a streak (0 = strict)
+export const CALENDAR_WEEKS = 26;       // ~6 months, Monday-first columns like the weekly goal
+const IST_MS = 19800000, DAY_MS = 86400000;
+
+export const istDayNumber = (ts) => Math.floor((ts + IST_MS) / DAY_MS);
+/** 0 = Monday ... 6 = Sunday for an IST day number (1970-01-01 was a Thursday). */
+export const dayOfWeek = (dayNum) => (((dayNum + 3) % 7) + 7) % 7;
+export const dayNumberToISO = (dayNum) => new Date(dayNum * DAY_MS).toISOString().slice(0, 10);
+
+/** Map<dayNumber, creditedMinutes> from the local event log (same weighting and daily cap as the weekly goal). */
+export function dailyCredits(events) {
+  const sums = new Map();
+  for (const e of events || []) {
+    if (!e || e.type !== 'activity' || !e.payload || !Number.isFinite(e.ts)) continue;
+    const d = istDayNumber(e.ts);
+    sums.set(d, (sums.get(d) || 0) + (Number(e.payload.minutes) || 0) * (e.payload.verified ? 1 : UNVERIFIED_WEIGHT));
+  }
+  for (const [d, v] of sums) sums.set(d, Math.min(v, DAILY_CREDIT_CAP_MIN));
+  return sums;
+}
+
+/** 0 = no activity, 1 = some (under the streak threshold), 2-4 = counts toward the streak, darker = more minutes. */
+export function heatLevel(mins) {
+  if (!(mins > 0)) return 0;
+  if (mins < ACTIVE_DAY_MIN) return 1;
+  if (mins < 25) return 2;
+  if (mins < 45) return 3;
+  return 4;
+}
+
+/**
+ * Current and longest streak. A streak counts active days; up to `grace` inactive days in a row
+ * (rest days) never break it. Today is still in progress, so an inactive today never breaks it.
+ */
+export function streakStats(dayMap, todayNum, grace = STREAK_REST_GRACE) {
+  const active = [...dayMap].filter(([d, v]) => d <= todayNum && v >= ACTIVE_DAY_MIN).map(([d]) => d).sort((a, b) => a - b);
+  let run = 0, longest = 0, prev = null;
+  for (const d of active) {
+    run = prev !== null && d - prev - 1 <= grace ? run + 1 : 1;
+    longest = Math.max(longest, run);
+    prev = d;
+  }
+  const alive = prev !== null && todayNum - prev - 1 <= grace;
+  return { current: alive ? run : 0, longest, totalActiveDays: active.length, activeToday: prev === todayNum };
+}
+
+/** GitHub-style grid: `weeks` Monday-first columns ending with the current week. */
+export function buildCalendar(dayMap, todayNum, weeks = CALENDAR_WEEKS) {
+  const start = todayNum - dayOfWeek(todayNum) - (weeks - 1) * 7;
+  const columns = [];
+  let activeInWindow = 0, lastMonth = -1;
+  for (let w = 0; w < weeks; w++) {
+    const days = [];
+    for (let r = 0; r < 7; r++) {
+      const day = start + w * 7 + r;
+      const future = day > todayNum;
+      const mins = future ? 0 : (dayMap.get(day) || 0);
+      if (!future && mins >= ACTIVE_DAY_MIN) activeInWindow++;
+      days.push({ day, mins: Math.round(mins), level: future ? 0 : heatLevel(mins), future, today: day === todayNum });
+    }
+    const month = new Date(days[0].day * DAY_MS).getUTCMonth();
+    columns.push({ days, month: month !== lastMonth ? month : null });
+    lastMonth = month;
+  }
+  return { columns, activeInWindow, startDay: start };
+}

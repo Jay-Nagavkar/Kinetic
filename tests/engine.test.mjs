@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { angle, angle3D, EMA, OneEuroFilter, RepTest, BalanceTest, baselineFrom, weeklyGoal, integrityVerdict } from '../frontend/engine.js';
+import { angle, angle3D, EMA, OneEuroFilter, RepTest, BalanceTest, baselineFrom, weeklyGoal, integrityVerdict,
+  istDayNumber, dayOfWeek, dailyCredits, heatLevel, streakStats, buildCalendar, ACTIVE_DAY_MIN } from '../frontend/engine.js';
 import { simFrame, squatPose, pushupPose } from '../frontend/sim.js';
 
 const FPS = 30;
@@ -130,3 +131,54 @@ test('arm_raise: seated arm raise counts 13 reps accurately', () => {
 });
 
 
+
+// ---- daily streak + activity calendar ----
+const istTs = (iso) => Date.parse(iso + '+05:30');
+const act = (iso, minutes, verified = true) => ({ type: 'activity', ts: istTs(iso), payload: { minutes, verified } });
+
+test('calendar days follow IST midnight, weeks start on Monday', () => {
+  assert.notEqual(istDayNumber(istTs('2026-10-05T00:30:00')), istDayNumber(istTs('2026-10-04T23:30:00')));
+  assert.equal(dayOfWeek(istDayNumber(istTs('2026-10-05T12:00:00'))), 0); // Monday
+  assert.equal(dayOfWeek(istDayNumber(istTs('2026-10-11T12:00:00'))), 6); // Sunday
+});
+
+test('dailyCredits: unverified minutes weigh half, daily cap applies, non-activity ignored', () => {
+  const m = dailyCredits([act('2026-10-05T07:00:00', 30, false), act('2026-10-05T18:00:00', 20, true),
+    act('2026-10-06T07:00:00', 500, true), { type: 'assessment', ts: istTs('2026-10-06T08:00:00'), payload: { minutes: 99 } }]);
+  assert.equal(m.get(istDayNumber(istTs('2026-10-05T12:00:00'))), 35);
+  assert.equal(m.get(istDayNumber(istTs('2026-10-06T12:00:00'))), 60);
+});
+
+test('heatLevel: none / some / counts, darker with more minutes', () => {
+  assert.deepEqual([0, 5, 10, 24, 25, 44, 45, 60].map(heatLevel), [0, 1, 2, 2, 3, 3, 4, 4]);
+});
+
+test('streak: consecutive days count, one rest day is protected, two break it', () => {
+  const today = istDayNumber(istTs('2026-10-10T12:00:00'));
+  const mk = (...offsets) => new Map(offsets.map((o) => [today - o, ACTIVE_DAY_MIN]));
+  assert.equal(streakStats(mk(2, 1, 0), today).current, 3);
+  assert.equal(streakStats(mk(3, 2, 0), today).current, 3);          // 1 rest day between: still alive
+  assert.equal(streakStats(mk(4, 3, 0), today).current, 1);          // 2 rest days in a row: today starts a new run
+  assert.equal(streakStats(mk(4, 3, 0), today).longest, 2);
+  assert.equal(streakStats(mk(2, 1), today).current, 2);             // today not done yet: streak alive
+  assert.equal(streakStats(mk(3, 2), today).current, 2);             // yesterday empty (protected rest day), today pending
+  assert.equal(streakStats(mk(4, 3), today).current, 0);             // two empty days in a row: streak is over
+  assert.equal(streakStats(mk(3, 2), today, 0).current, 0);          // strict mode (grace 0): yesterday empty breaks it
+  assert.equal(streakStats(mk(1, 0), today, 0).current, 2);          // strict mode still counts consecutive days
+  assert.equal(streakStats(mk(20, 19, 18, 10, 0), today).longest, 3);
+  assert.equal(streakStats(new Map(), today).current, 0);
+  assert.equal(streakStats(new Map([[today, 9]]), today).current, 0); // under the threshold doesn't count
+});
+
+test('calendar grid: 26 Monday-first columns ending this week, no future cells counted', () => {
+  const today = istDayNumber(istTs('2026-10-07T12:00:00')); // Wednesday
+  const cal = buildCalendar(new Map([[today, 30], [today - 1, 12]]), today, 26);
+  assert.equal(cal.columns.length, 26);
+  assert.ok(cal.columns.every((c) => c.days.length === 7 && dayOfWeek(c.days[0].day) === 0));
+  const last = cal.columns[25].days;
+  assert.equal(last[2].today, true);
+  assert.ok(last.slice(3).every((d) => d.future));
+  assert.equal(last[2].level, 3);
+  assert.equal(cal.activeInWindow, 2);
+  assert.ok(cal.columns[0].month !== null);
+});

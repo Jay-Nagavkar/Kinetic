@@ -2,6 +2,19 @@
 
 All notable changes to the KhelSetu project will be documented in this file.
 
+## [Unreleased] - 2026-10-03
+
+### Added
+- **Daily streak + GitHub-style activity calendar** on the home screen: 26 Monday-first weeks of day squares shaded by credited minutes (FitCheck sessions, logged time and officer-verified sessions all count), with current streak, longest streak and active-day totals. A day counts at 10+ credited minutes; one rest day in a row never breaks the streak (`STREAK_REST_GRACE` in `frontend/engine.js`, set to 0 for strict streaks). Computed offline from the local event log; tap a square to see its date and minutes. Pure helpers (`dailyCredits`, `heatLevel`, `streakStats`, `buildCalendar`) are unit-tested in `tests/engine.test.mjs`.
+- Heat-scale tokens for Dark, Light and High-Contrast themes; English and Hindi strings.
+
+### Changed
+- The header streak chip and milestone share card now show the consecutive-day streak instead of active days this week.
+
+### Fixed
+- Removed hardcoded dark inline colors on `<body>` in `frontend/index.html` that kept Light and High-Contrast themes showing near-white text on a dark page.
+- Bumped service-worker cache (`khelsetu-v5-streak-calendar`) and asset query strings so installed PWAs pick up the update.
+
 ## [0.3.0-P2-P3] - 2026-10-02
 
 ### Added

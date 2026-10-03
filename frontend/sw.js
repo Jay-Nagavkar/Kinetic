@@ -1,5 +1,5 @@
 // Service worker: precache the app shell + pose runtime with Network-First strategy
-const CACHE = 'khelsetu-v4-neon-arena';
+const CACHE = 'khelsetu-v5-streak-calendar';
 
 const SHELL = [
   './',
