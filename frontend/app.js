@@ -1,5 +1,5 @@
 import { RepTest, BalanceTest, TEST_CONFIG, baselineFrom, weeklyGoal, DAILY_CREDIT_CAP_MIN, UNVERIFIED_WEIGHT, BANDS, ACTIVE_DAY_MIN, CALENDAR_WEEKS, istDayNumber, dailyCredits, streakStats, buildCalendar, dayNumberToISO } from './engine.js';
-import { kvGet, kvSet, addEvent, allEvents, unsynced, wipeAll, trySync, api, net, isOnline, getDevicePublicKey } from './store.js';
+import { kvGet, kvSet, addEvent, allEvents, unsynced, wipeAll, clearUserData, trySync, api, net, isOnline, getDevicePublicKey } from './store.js';
 import { t, setLang, getLang, STR } from './i18n.js';
 import { createSource } from './pose.js';
 
@@ -288,6 +288,9 @@ function toast(msg, ms = 2600) {
 }
 
 function stopRun() {
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch {}
+  }
   if (S.run) {
     S.run.cancelled = true;
     S.run.src?.stop();
@@ -825,6 +828,7 @@ async function viewRun({ kind, mode }) {
   const o = S.opts;
   const hideVideo = o.silhouette || o.sim;
   app.innerHTML = `
+    <div class="stage-wrap" id="stageWrap">
     <div class="stage ${o.sim ? '' : 'mirror'}" id="stage">
       <video id="vid" playsinline muted class="${hideVideo ? 'hide' : ''}"></video>
       <canvas id="cv"></canvas>
@@ -841,7 +845,21 @@ async function viewRun({ kind, mode }) {
       <div class="hint" id="hint"><span class="dot" id="dot"></span><span id="htxt">${t('loadingModel')}</span></div>
       <div class="overlay" id="ov" hidden></div>
     </div>
-    <button class="btn alt" id="stop" style="margin-top:12px">${mode === 'session' ? t('stopSession') : t('back')}</button>`;
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn alt" id="stop">${mode === 'session' ? t('stopSession') : t('back')}</button>
+      <button class="btn alt" id="fs" data-testid="run-fullscreen" aria-label="${t('fullscreen')}">⛶ ${t('fullscreen')}</button>
+    </div>`;
+
+  // Full-screen toggle (wraps the stage so the skeleton overlay stays aligned with the video)
+  const fsBtn = $('#fs');
+  const fsOn = () => document.fullscreenElement || document.webkitFullscreenElement;
+  if (!(document.fullscreenEnabled || document.webkitFullscreenEnabled)) fsBtn.hidden = true;
+  else fsBtn.onclick = () => {
+    haptic(15);
+    const w = $('#stageWrap');
+    try { fsOn() ? (document.exitFullscreen || document.webkitExitFullscreen).call(document) : (w.requestFullscreen || w.webkitRequestFullscreen).call(w); } catch {}
+  };
 
   const run = { cancelled: false, src: null };
   S.run = run;
@@ -857,6 +875,7 @@ async function viewRun({ kind, mode }) {
   if (run.cancelled) { src.stop(); return; }
   run.src = src;
   $('#stage').style.aspectRatio = String(src.aspect);
+  $('#stageWrap').style.setProperty('--ar', String(src.aspect));
   const cv = $('#cv'), g = cv.getContext('2d');
   const isBal = kind === 'balance';
   let probe = isBal ? new BalanceTest() : new RepTest(kind, { modified: o.modified });
@@ -1398,6 +1417,7 @@ async function viewPrivacy() {
       ${!isPersisted ? `<button class="btn alt" id="reqPersist">${t('storagePersist')}</button>` : ''}
     </div>
     <button class="btn alt" id="exp">${t('exportData')}</button>
+    ${S.profile ? `<button class="btn alt" id="logout" data-testid="logout-btn">${t('logout')}</button>` : ''}
     <button class="btn danger" id="del">${t('deleteData')}</button>
     <h2>Demo</h2>
     <label class="check"><input type="checkbox" id="air" ${net.forceOffline ? 'checked' : ''}><span>${t('airplane')}</span></label>
@@ -1475,6 +1495,24 @@ async function viewPrivacy() {
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
     a.download = 'khelsetu-my-data.json';
     a.click();
+  };
+
+  const lo = $('#logout');
+  if (lo) lo.onclick = async () => {
+    haptic(30);
+    // Push anything still pending first so the workouts of the user who is leaving are not lost.
+    if (isOnline() && S.token) await trySync().catch(() => {});
+    const pending = (await unsynced().catch(() => [])).length;
+    if (!confirm(pending > 0 ? t('logoutPending').replace('{n}', pending) : t('logoutConfirm'))) return;
+    await clearUserData();
+    S.profile = null;
+    S.token = null;
+    // Reset the personal prefs; device settings (theme, motion, haptics, language) stay.
+    Object.assign(S.prefs, { kindness_mode: false, board_opt_out: false, alias: '', avatar: '🏃' });
+    await kvSet('prefs', S.prefs).catch(() => {});
+    Object.assign(ob, { step: 1, name: '', code: 'DEMO', group: '', year: '', age18: false, c1: true, c2: true, parq: Array(7).fill(null), startTime: Date.now() });
+    toast(t('loggedOut'));
+    go('onboard');
   };
 
   $('#del').onclick = async () => {

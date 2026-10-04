@@ -74,6 +74,20 @@ export async function markSynced(ids, status = 1) {
     t.oncomplete = res; t.onerror = () => rej(t.error);
   });
 }
+export const resetDeviceKey = () => { _deviceKeyPair = null; };
+/** Log-out helper: drops the signed-in user's events and cached data but keeps device settings (theme, language, ...). */
+export async function clearUserData(keep = ['prefs', 'lang']) {
+  const d = await open();
+  await new Promise((res, rej) => {
+    const t = d.transaction(['kv', 'events'], 'readwrite');
+    const kv = t.objectStore('kv');
+    const keys = kv.getAllKeys();
+    keys.onsuccess = () => keys.result.forEach((k) => { if (!keep.includes(k)) kv.delete(k); });
+    t.objectStore('events').clear();
+    t.oncomplete = res; t.onerror = () => rej(t.error);
+  });
+  resetDeviceKey(); // the next user registers with a fresh signing key
+}
 export async function wipeAll() {
   const d = await open();
   await new Promise((res) => { const t = d.transaction(['kv', 'events'], 'readwrite'); t.objectStore('kv').clear(); t.objectStore('events').clear(); t.oncomplete = res; });

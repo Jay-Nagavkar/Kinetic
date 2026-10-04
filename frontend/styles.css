@@ -231,6 +231,7 @@ svg:not(:root) { vertical-align: middle; }
 
 /* App content area ------------------------------------------- */
 main#app {
+  width: 100%;              /* in the desktop grid, auto side margins would otherwise shrink-wrap the content */
   max-width: 680px;
   margin: 0 auto;
   padding: var(--sp-4);
@@ -619,14 +620,29 @@ input:focus, select:focus, textarea:focus {
   line-height: 1.5;
 }
 .check input[type=checkbox] {
+  /* the shared `input` rule sets appearance:none, which also removes the browser's tick, so draw our own */
+  -webkit-appearance: none; appearance: none;
   width: 22px; height: 22px; min-height: 22px;
-  margin-top: 2px; flex: none;
-  accent-color: var(--mint);
-  border-radius: var(--r-xs);
-  border: 1.5px solid var(--border);
+  margin-top: 2px; flex: none; padding: 0;
+  display: grid; place-content: center;
+  background: var(--surface-2);
+  border: 1.5px solid var(--border-strong);
+  border-radius: 6px;
   cursor: pointer;
-  padding: 0;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
+.check input[type=checkbox]::after {
+  content: '';
+  width: 6px; height: 11px;
+  margin-top: -2px;
+  border: solid var(--ink-on-accent);
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg) scale(0);
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+.check input[type=checkbox]:checked { background: var(--mint); border-color: var(--mint); }
+.check input[type=checkbox]:checked::after { transform: rotate(45deg) scale(1); }
+.check input[type=checkbox]:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(46,230,166,.35); }
 .row { display: flex; gap: var(--sp-2); }
 .row > * { flex: 1; }
 
@@ -1615,3 +1631,10 @@ input:focus, select:focus, textarea:focus {
 .cal-foot { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-3); margin-top: var(--sp-3); flex-wrap: wrap; }
 .cal-legend { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; color: var(--muted); }
 .cal-legend .cal-cell { width: 11px; height: 11px; cursor: default; }
+
+/* ---- Full-screen camera ---- */
+.stage-wrap { width: 100%; }
+.stage-wrap:fullscreen { display: grid; place-items: center; background: #000; }
+.stage-wrap:-webkit-full-screen { display: grid; place-items: center; background: #000; }
+.stage-wrap:fullscreen .stage { width: min(100vw, calc(100vh * var(--ar, 1.3333))); border-radius: 0; border: 0; box-shadow: none; }
+.stage-wrap:-webkit-full-screen .stage { width: min(100vw, calc(100vh * var(--ar, 1.3333))); border-radius: 0; border: 0; box-shadow: none; }

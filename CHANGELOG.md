@@ -8,10 +8,15 @@ All notable changes to the KhelSetu project will be documented in this file.
 - **Daily streak + GitHub-style activity calendar** on the home screen: 26 Monday-first weeks of day squares shaded by credited minutes (FitCheck sessions, logged time and officer-verified sessions all count), with current streak, longest streak and active-day totals. A day counts at 10+ credited minutes; one rest day in a row never breaks the streak (`STREAK_REST_GRACE` in `frontend/engine.js`, set to 0 for strict streaks). Computed offline from the local event log; tap a square to see its date and minutes. Pure helpers (`dailyCredits`, `heatLevel`, `streakStats`, `buildCalendar`) are unit-tested in `tests/engine.test.mjs`.
 - Heat-scale tokens for Dark, Light and High-Contrast themes; English and Hindi strings.
 
+- **Log out** (Privacy & Settings): syncs pending events first, warns if any could not sync, clears the signed-in user's local workouts, profile, token and personal prefs (device settings such as theme and language are kept), then returns to onboarding so a different user can register on the same device. Includes a fresh device signing key for the next user.
+- **Full screen** button for the live FitCheck camera view.
+
 ### Changed
 - The header streak chip and milestone share card now show the consecutive-day streak instead of active days this week.
 
 ### Fixed
+- Checkboxes (Skeleton only, Voice coach, ...) never showed a tick: the global `input { appearance: none }` rule removed the native one. They now draw their own tick in all themes.
+- On desktop widths the FitCheck camera stage collapsed to the width of the Back button (an auto-margined grid item shrink-wraps its content), so the live view was a tiny box. `main#app` now has `width: 100%`.
 - Removed hardcoded dark inline colors on `<body>` in `frontend/index.html` that kept Light and High-Contrast themes showing near-white text on a dark page.
 - Bumped service-worker cache (`khelsetu-v5-streak-calendar`) and asset query strings so installed PWAs pick up the update.
 
