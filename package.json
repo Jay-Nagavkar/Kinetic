@@ -15,6 +15,7 @@
     "sim:leaderboards": "python scripts/sim_leaderboards.py",
     "eval:meals": "python scripts/eval_meals.py",
     "eval:reps": "node scripts/eval_reps.mjs",
-    "start": "uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload"
+    "start": "uvicorn backend.main:app --host localhost --port 8000 --reload",
+    "start:lan": "uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload"
   }
 }
